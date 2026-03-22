@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building, Leaf, DollarSign, Clock, AlertTriangle, CheckCircle, RefreshCcw, Info } from 'lucide-react';
+import { Building, Leaf, DollarSign, Clock, AlertTriangle, CheckCircle, RefreshCcw, Info, User } from 'lucide-react';
 
 // --- DATA ---
 const BUDGET_LIMIT = 15000000;
@@ -7,88 +7,130 @@ const CARBON_LIMIT = 5000000;
 
 const OPTIONS = {
   structure: [
-    { id: 's1', name: 'Traditional Concrete', cost: 8000000, carbon: 6000000, durability: 100, desc: 'Cheap and highly durable, but a massive carbon emitter during cement production.' },
-    { id: 's2', name: 'Recycled Steel', cost: 10000000, carbon: 4000000, durability: 80, desc: 'Better carbon footprint than concrete, strong, but moderately expensive.' },
-    { id: 's3', name: 'Mass Timber', cost: 12000000, carbon: 1000000, durability: 70, desc: 'Acts as a carbon sink. Excellent environmental profile, but very expensive upfront.' },
+    { id: 's1', name: 'BLOCK CONCRETE', cost: 8000000, carbon: 6000000, durability: 100, desc: 'Heavy block construction. High HP, but pollutes the estate.' },
+    { id: 's2', name: 'REINFORCED STEEL', cost: 10000000, carbon: 4000000, durability: 80, desc: 'Forged in the fire. Solid defense with balanced emissions.' },
+    { id: 's3', name: 'ANCIENT TIMBER', cost: 12000000, carbon: 1000000, durability: 70, desc: 'Grown from the earth. Purifies the air but drains the gold.' },
   ],
   seating: [
-    { id: 'c1', name: 'Virgin Plastic', cost: 1000000, carbon: 500000, durability: 15, desc: 'Standard auditorium seating. Cheap but heavily reliant on fossil fuels.' },
-    { id: 'c2', name: 'Recycled Ocean Plastic', cost: 1500000, carbon: 100000, durability: 15, desc: 'Cleans up oceans and lowers footprint, though durability remains low.' },
-    { id: 'c3', name: 'Locally Sourced Wood', cost: 2000000, carbon: -50000, durability: 30, desc: 'Stores carbon (negative emissions) and lasts twice as long, but costs double.' },
+    { id: 'c1', name: 'PLASTIC BENCH', cost: 1000000, carbon: 500000, durability: 15, desc: 'Generic mass-produced seating. Cheap and oily.' },
+    { id: 'c2', name: 'SALVAGE PLASTIC', cost: 1500000, carbon: 100000, durability: 15, desc: 'Scavenged from the ocean wastes. Good for the soul.' },
+    { id: 'c3', name: 'ELVEN OAK', cost: 2000000, carbon: -50000, durability: 30, desc: 'Premium crafted wood. Lasts for ages and breathes life.' },
   ],
   energy: [
-    { id: 'e1', name: 'Standard Grid', cost: 2000000, carbon: 3000000, durability: 20, desc: 'Relies on local Florida grid (mixed fossil fuels). Cheap to install, high life-cycle carbon.' },
-    { id: 'e2', name: 'High-Efficiency + Solar Roof', cost: 4000000, carbon: 500000, durability: 25, desc: 'Offsets daytime usage significantly, moderate upfront investment.' },
-    { id: 'e3', name: 'Geothermal System', cost: 6000000, carbon: 100000, durability: 40, desc: 'Extremely efficient heating/cooling with long lifespan, but massive capital cost.' },
+    { id: 'e1', name: 'COAL BURNER', cost: 2000000, carbon: 3000000, durability: 20, desc: 'The old ways. Plumes of smoke for a handful of gold.' },
+    { id: 'e2', name: 'SUN CRYSTALS', cost: 4000000, carbon: 500000, durability: 25, desc: 'Harness the light. Expensive tech for a cleaner future.' },
+    { id: 'e3', name: 'CORE HEAT', cost: 6000000, carbon: 100000, durability: 40, desc: 'Tapping the earth\'s heart. Eternal energy at a massive cost.' },
   ]
 };
 
-// --- COMPONENTS ---
-
-const ProgressBar = ({ label, value, max, unit, icon: Icon, inverseColor = false }) => {
-  const percentage = Math.min((value / max) * 100, 100);
+// --- STYLES ---
+const pixelStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   
-  // If inverseColor is true, exceeding the max is BAD (red). If false, it's good (green).
-  let color = 'bg-blue-500';
-  if (inverseColor) {
-    if (percentage > 100) color = 'bg-red-500';
-    else if (percentage > 80) color = 'bg-yellow-500';
-    else color = 'bg-green-500';
-  } else {
-    color = 'bg-blue-500';
+  .pixel-font {
+    font-family: 'Press+Start+2P', 'Courier New', cursive;
+    text-transform: uppercase;
   }
 
+  .pixel-border {
+    border: 4px solid #000;
+    box-shadow: 
+      inset -4px -4px 0px 0px #333,
+      inset 4px 4px 0px 0px #eee;
+    background: #c0c0c0;
+  }
+
+  .pixel-button {
+    border: 4px solid #000;
+    box-shadow: 
+      inset -4px -4px 0px 0px #888,
+      4px 4px 0px 0px #000;
+    transition: all 0.1s;
+  }
+
+  .pixel-button:active {
+    box-shadow: inset 4px 4px 0px 0px #888;
+    transform: translate(2px, 2px);
+  }
+
+  .crt-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+    background-size: 100% 4px, 3px 100%;
+    pointer-events: none;
+    z-index: 50;
+  }
+
+  .scanline {
+    width: 100%;
+    height: 100px;
+    z-index: 51;
+    background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(255,255,255,0.1) 50%, rgba(0,0,0,0) 100%);
+    opacity: 0.1;
+    position: fixed;
+    bottom: 100%;
+    animation: scanline 8s linear infinite;
+  }
+
+  @keyframes scanline {
+    0% { bottom: 100%; }
+    100% { bottom: -100px; }
+  }
+`;
+
+// --- COMPONENTS ---
+
+const PixelProgressBar = ({ label, value, max, unit, colorClass }) => {
+  const percentage = Math.min((value / max) * 100, 100);
+  const isDanger = value > max;
+
   return (
-    <div className="mb-4">
-      <div className="flex justify-between mb-1 items-center">
-        <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
-          <Icon size={16} /> {label}
-        </span>
-        <span className="text-sm font-bold text-slate-900">
-          {value.toLocaleString()} {unit} <span className="text-slate-500 text-xs font-normal">/ {max.toLocaleString()}</span>
+    <div className="mb-6">
+      <div className="flex justify-between mb-2 pixel-font text-[10px]">
+        <span>{label}</span>
+        <span className={isDanger ? 'text-red-500 animate-pulse' : ''}>
+          {Math.round(value/1000)}K / {Math.round(max/1000)}K
         </span>
       </div>
-      <div className="w-full bg-slate-200 rounded-full h-3">
-        <div className={`h-3 rounded-full transition-all duration-500 ${color}`} style={{ width: `${percentage}%` }}></div>
+      <div className="h-8 border-4 border-black bg-gray-900 p-1 relative">
+        <div 
+          className={`h-full transition-all duration-500 ${isDanger ? 'bg-red-600' : colorClass}`} 
+          style={{ width: `${percentage}%` }}
+        ></div>
+        {isDanger && <div className="absolute inset-0 flex items-center justify-center pixel-font text-[8px] text-white">OVER LIMIT!</div>}
       </div>
-      {value > max && inverseColor && (
-        <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
-          <AlertTriangle size={12} /> Limit Exceeded
-        </p>
-      )}
     </div>
   );
 };
 
-const OptionCard = ({ option, selected, onSelect, category }) => {
+const PixelCard = ({ option, selected, onSelect, category }) => {
   return (
     <div 
       onClick={() => onSelect(category, option)}
-      className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+      className={`p-4 border-4 cursor-pointer relative transition-all ${
         selected?.id === option.id 
-          ? 'border-blue-600 bg-blue-50 shadow-md' 
-          : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm'
+          ? 'border-yellow-400 bg-blue-900 text-white translate-x-1 translate-y-1' 
+          : 'border-black bg-gray-800 text-gray-300 hover:bg-gray-700'
       }`}
+      style={{ boxShadow: selected?.id === option.id ? '0px 0px 0px 0px' : '6px 6px 0px 0px #000' }}
     >
-      <div className="flex justify-between items-start mb-2">
-        <h4 className="font-bold text-slate-800">{option.name}</h4>
-        {selected?.id === option.id && <CheckCircle size={20} className="text-blue-600" />}
-      </div>
-      <p className="text-sm text-slate-600 mb-3 h-10">{option.desc}</p>
-      <div className="grid grid-cols-3 gap-2 text-xs">
-        <div className="flex flex-col">
-          <span className="text-slate-400 font-medium">Cost</span>
-          <span className="font-bold text-slate-700">${(option.cost / 1000000).toFixed(1)}M</span>
+      <h4 className="pixel-font text-xs mb-2 text-yellow-400">{option.name}</h4>
+      <p className="text-[10px] leading-tight mb-4 h-12 opacity-80">{option.desc}</p>
+      
+      <div className="grid grid-cols-1 gap-1 text-[9px] pixel-font">
+        <div className="flex justify-between">
+          <span className="text-green-400">GOLD:</span>
+          <span>${(option.cost / 1000000).toFixed(1)}M</span>
         </div>
-        <div className="flex flex-col">
-          <span className="text-slate-400 font-medium">Carbon</span>
-          <span className="font-bold text-slate-700">
-            {option.carbon > 0 ? '+' : ''}{(option.carbon / 1000).toFixed(0)}k kg
-          </span>
+        <div className="flex justify-between">
+          <span className="text-red-400">SMOKE:</span>
+          <span>{(option.carbon / 1000).toFixed(0)}K</span>
         </div>
-        <div className="flex flex-col">
-          <span className="text-slate-400 font-medium">Lifespan</span>
-          <span className="font-bold text-slate-700">{option.durability} yrs</span>
+        <div className="flex justify-between">
+          <span className="text-blue-400">LIFE:</span>
+          <span>{option.durability}Y</span>
         </div>
       </div>
     </div>
@@ -104,7 +146,7 @@ export default function App() {
     energy: OPTIONS.energy[0]
   });
 
-  const [gameState, setGameState] = useState('playing'); // 'playing', 'submitted'
+  const [gameState, setGameState] = useState('playing');
 
   const totalCost = selections.structure.cost + selections.seating.cost + selections.energy.cost;
   const totalCarbon = selections.structure.carbon + selections.seating.carbon + selections.energy.carbon;
@@ -115,169 +157,107 @@ export default function App() {
     setSelections(prev => ({ ...prev, [category]: option }));
   };
 
-  const handleSubmit = () => {
-    setGameState('submitted');
-  };
-
-  const resetGame = () => {
-    setSelections({
-      structure: OPTIONS.structure[0],
-      seating: OPTIONS.seating[0],
-      energy: OPTIONS.energy[0]
-    });
-    setGameState('playing');
-  };
-
   const isOverBudget = totalCost > BUDGET_LIMIT;
   const isOverCarbon = totalCarbon > CARBON_LIMIT;
 
-  const generateFeedback = () => {
-    let feedback = [];
-    
-    if (isOverBudget) {
-      feedback.push({ type: 'error', text: "Project rejected by UF Board of Trustees due to budget overruns." });
-    } else {
-      feedback.push({ type: 'success', text: "Project approved! You stayed within the $15M budget." });
-    }
-
-    if (isOverCarbon) {
-      feedback.push({ type: 'error', text: "Missed sustainability goals. The university's carbon footprint target was exceeded." });
-    } else {
-      feedback.push({ type: 'success', text: "Excellent environmental leadership! You met the 5M kg CO₂e target." });
-    }
-
-    if (selections.structure.id === 's3') {
-      feedback.push({ type: 'info', text: "Choosing Mass Timber severely limited your budget for other systems, but acted as a massive carbon sink." });
-    }
-    if (selections.energy.id === 'e1' && !isOverBudget) {
-      feedback.push({ type: 'info', text: "Relying on the Standard Grid saved money today, but locks the auditorium into high emissions for the next 20 years." });
-    }
-    if (selections.seating.id === 'c3') {
-      feedback.push({ type: 'info', text: "Local wood seating increased durability and trapped carbon, proving that small interior choices matter." });
-    }
-
-    return feedback;
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 font-sans p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-[#1a1a2e] text-white p-4 md:p-8 relative overflow-hidden">
+      <style>{pixelStyles}</style>
+      
+      {/* CRT Effects */}
+      <div className="crt-overlay"></div>
+      <div className="scanline"></div>
+
+      <div className="max-w-6xl mx-auto relative z-10">
         
-        {/* Header */}
-        <header className="mb-8 text-center md:text-left">
-          <div className="inline-flex items-center justify-center p-3 bg-blue-600 text-white rounded-xl mb-4">
-            <Building size={32} />
+        {/* Header - Zombie Estate Style */}
+        <header className="mb-12 border-8 border-double border-yellow-500 p-6 bg-black text-center shadow-[0_0_20px_rgba(234,179,8,0.3)]">
+          <h1 className="pixel-font text-2xl md:text-4xl text-yellow-400 mb-4 animate-pulse">
+            LCA MANAGER: UF ESTATE
+          </h1>
+          <div className="flex justify-center gap-6 pixel-font text-[10px]">
+            <span className="text-green-400">LVL 01</span>
+            <span className="text-red-400">WAVE: CONSTRUCTION</span>
+            <span className="text-blue-400">SCORE: {Math.round(avgDurability * 100)}</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-2">UF Auditorium LCA Simulator</h1>
-          <p className="text-slate-600 max-w-2xl text-lg">
-            Role: Lead LCA Manager. Balance your $15M budget against aggressive sustainability targets. Every material choice impacts the building's 50-year lifecycle.
-          </p>
         </header>
 
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col lg:flex-row gap-12">
           
-          {/* Left Column: Choices */}
-          <div className="lg:w-2/3 space-y-8">
-            {/* Structure Section */}
-            <section>
-              <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2">
-                <Building className="text-blue-600" /> 1. Structural System
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {OPTIONS.structure.map(opt => (
-                  <OptionCard key={opt.id} option={opt} selected={selections.structure} onSelect={handleSelect} category="structure" />
-                ))}
-              </div>
-            </section>
-
-            {/* Seating Section */}
-            <section>
-              <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2">
-                <Clock className="text-blue-600" /> 2. Interior Seating
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {OPTIONS.seating.map(opt => (
-                  <OptionCard key={opt.id} option={opt} selected={selections.seating} onSelect={handleSelect} category="seating" />
-                ))}
-              </div>
-            </section>
-
-            {/* Energy Section */}
-            <section>
-              <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2">
-                <Leaf className="text-blue-600" /> 3. Energy System
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {OPTIONS.energy.map(opt => (
-                  <OptionCard key={opt.id} option={opt} selected={selections.energy} onSelect={handleSelect} category="energy" />
-                ))}
-              </div>
-            </section>
+          {/* Main Content Area */}
+          <div className="lg:w-2/3 space-y-12">
+            {Object.keys(OPTIONS).map((category) => (
+              <section key={category}>
+                <h3 className="pixel-font text-sm text-blue-400 mb-6 flex items-center gap-4">
+                   {category} selection
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {OPTIONS[category].map(opt => (
+                    <PixelCard 
+                      key={opt.id} 
+                      option={opt} 
+                      selected={selections[category]} 
+                      onSelect={handleSelect} 
+                      category={category} 
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
 
-          {/* Right Column: Dashboard */}
+          {/* HUD (Heads Up Display) */}
           <div className="lg:w-1/3">
-            <div className="bg-white rounded-2xl shadow-xl p-6 sticky top-8 border border-slate-100">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6 border-b pb-4">Live Dashboard</h2>
+            <div className="bg-black border-8 border-gray-700 p-6 sticky top-8 shadow-[10px_10px_0px_0px_#000]">
+              <h2 className="pixel-font text-lg text-center text-white mb-8 border-b-4 border-gray-700 pb-4">
+                HUD STATUS
+              </h2>
               
-              <ProgressBar 
-                label="Total Cost" 
+              <PixelProgressBar 
+                label="GOLD (COST)" 
                 value={totalCost} 
                 max={BUDGET_LIMIT} 
-                unit="$" 
-                icon={DollarSign}
-                inverseColor={true} 
+                colorClass="bg-yellow-500" 
               />
               
-              <ProgressBar 
-                label="Carbon Footprint" 
+              <PixelProgressBar 
+                label="SMOKE (CARBON)" 
                 value={totalCarbon} 
                 max={CARBON_LIMIT} 
-                unit="kg CO₂e" 
-                icon={Leaf}
-                inverseColor={true}
+                colorClass="bg-green-600" 
               />
 
-              <div className="mb-8 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <span className="text-sm font-medium text-slate-700 flex items-center gap-2 mb-1">
-                  <Clock size={16} /> Avg. Component Durability
-                </span>
-                <span className="text-3xl font-extrabold text-blue-600">{avgDurability} <span className="text-lg text-slate-500 font-medium">years</span></span>
-                <p className="text-xs text-slate-500 mt-2">Higher durability means fewer replacements over the building's lifetime, lowering long-term LCA impacts.</p>
+              <div className="mb-8 p-4 bg-gray-900 border-4 border-gray-800 text-center">
+                <div className="pixel-font text-[10px] text-blue-400 mb-2">BUILD HP (DURABILITY)</div>
+                <div className="text-4xl pixel-font text-white">{avgDurability}</div>
               </div>
 
               {gameState === 'playing' ? (
                 <button 
-                  onClick={handleSubmit}
-                  className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all transform hover:-translate-y-1"
+                  onClick={() => setGameState('submitted')}
+                  className="w-full py-4 pixel-button bg-red-600 hover:bg-red-500 text-white pixel-font text-xs"
                 >
-                  Submit Design Proposal
+                  START BUILD
                 </button>
               ) : (
-                <div className="animate-fade-in-up">
-                  <div className={`p-4 rounded-xl mb-4 ${(!isOverBudget && !isOverCarbon) ? 'bg-green-100 border border-green-300' : 'bg-red-50 border border-red-200'}`}>
-                    <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-                      {(!isOverBudget && !isOverCarbon) ? <CheckCircle className="text-green-600"/> : <AlertTriangle className="text-red-600"/>}
-                      Final Evaluation
-                    </h3>
-                    <ul className="space-y-3">
-                      {generateFeedback().map((fb, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm">
-                          {fb.type === 'error' && <AlertTriangle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />}
-                          {fb.type === 'success' && <CheckCircle size={16} className="text-green-500 flex-shrink-0 mt-0.5" />}
-                          {fb.type === 'info' && <Info size={16} className="text-blue-500 flex-shrink-0 mt-0.5" />}
-                          <span className={fb.type === 'error' ? 'text-red-700 font-medium' : fb.type === 'success' ? 'text-green-700 font-medium' : 'text-slate-700'}>
-                            {fb.text}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                <div className="space-y-4">
+                  <div className={`p-4 border-4 pixel-font text-[10px] leading-loose ${(!isOverBudget && !isOverCarbon) ? 'bg-green-900 border-green-400' : 'bg-red-900 border-red-500'}`}>
+                    {(!isOverBudget && !isOverCarbon) ? (
+                      <div className="text-green-300">ESTATE SECURED! DESIGN APPROVED.</div>
+                    ) : (
+                      <div className="text-red-300">GAME OVER! ESTATE FAILED.</div>
+                    )}
+                    <div className="mt-4 text-white opacity-80 uppercase">
+                      {isOverBudget && "• BUDGET DEPLETED"}
+                      {isOverCarbon && "• TOXIC ATMOSPHERE"}
+                      {!isOverBudget && !isOverCarbon && "• SUSTAINABLE VICTORY"}
+                    </div>
                   </div>
                   <button 
-                    onClick={resetGame}
-                    className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow flex items-center justify-center gap-2 transition-colors"
+                    onClick={() => setGameState('playing')}
+                    className="w-full py-3 pixel-button bg-blue-600 hover:bg-blue-500 text-white pixel-font text-xs"
                   >
-                    <RefreshCcw size={18} /> Redesign Project
+                    RETRY STAGE
                   </button>
                 </div>
               )}
